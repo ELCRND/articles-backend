@@ -12,8 +12,7 @@ import {
   Subtheme,
   Tag,
   Theme,
-  User,
-} from 'prisma/__prisma-generated__';
+} from 'src/mongoose/schemas/article.schema';
 
 export class CreateArticleDto {
   @ApiProperty({ example: 'Название статьи', description: 'Заголовок статьи' })
@@ -76,7 +75,7 @@ export class CreateArticleDto {
   published?: boolean;
 
   @ApiProperty({
-    example: '538a988d-2e2c-4de5-8e3e-aa3a5f80a386',
+    example: '202b24f2-503a-49f8-a27a-a5a1a8bf54be',
     description: 'Автор',
   })
   @IsString()

@@ -1,0 +1,65 @@
+// import { faker } from '@faker-js/faker/locale/ru';
+
+// import {
+//   Category,
+//   PrismaClient,
+//   Subtheme,
+//   Tag,
+//   Theme,
+// } from './__prisma-generated__';
+
+// const prisma = new PrismaClient();
+
+// async function createArticles() {
+//   await prisma.article.deleteMany();
+
+//   const categories: Category[] = Array.from(Object.values(Category));
+//   const themes: Theme[] = Array.from(Object.values(Theme));
+//   const subthemes: Subtheme[] = Array.from(Object.values(Subtheme));
+//   const tags: Tag[] = Array.from(Object.values(Tag));
+
+//   const articlesData: any = [];
+
+//   for (let i = 0; i < 15; i++) {
+//     const randomTags = faker.helpers.arrayElements(
+//       tags,
+//       faker.number.int({ min: 1, max: 4 }),
+//     );
+
+//     articlesData.push({
+//       title: faker.lorem.sentence(),
+//       content: faker.lorem.paragraphs(faker.number.int({ min: 3, max: 10 })),
+//       image: faker.image.urlLoremFlickr({ category: 'technology' }),
+//       category: faker.helpers.arrayElement(categories),
+//       theme: faker.helpers.arrayElement(themes),
+//       subtheme: faker.helpers.arrayElement(subthemes),
+//       tags: randomTags,
+//       authorId: '202b24f2-503a-49f8-a27a-a5a1a8bf54be',
+//       views: faker.number.int({ min: 0, max: 1000 }),
+//       comments: faker.number.int({ min: 0, max: 10 }),
+//       readingTime: faker.number.int({ min: 1, max: 10 }),
+//       published: faker.datatype.boolean(),
+//       publishedAt: faker.datatype.boolean() ? faker.date.past() : null,
+//     });
+//   }
+
+//   const createdArticles = await prisma.article.createMany({
+//     data: articlesData,
+//     skipDuplicates: true,
+//   });
+
+//   return createdArticles.count;
+// }
+
+// async function generate() {
+//   try {
+//     const count = await createArticles();
+//     console.log(`Успешно создано ${count} статей.`);
+//   } catch (error) {
+//     console.error('Ошибка при заполнении базы данных:', error);
+//   } finally {
+//     await prisma.$disconnect();
+//   }
+// }
+
+// generate();

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { Role } from 'prisma/__prisma-generated__';
+import { Role } from 'src/mongoose/schemas/user.schema';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -23,6 +23,19 @@ export class RolesGuard implements CanActivate {
     }
 
     const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.some((role) => user.role === role);
+
+    if (!user?.role) {
+      throw new ForbiddenException('Доступ запрещен: роль не определена');
+    }
+
+    const hasRole = requiredRoles.some((role) => user.role === role);
+
+    if (!hasRole) {
+      throw new ForbiddenException(
+        `Доступ запрещен: требуется одна из ролей [${requiredRoles.join(', ')}]`,
+      );
+    }
+
+    return true;
   }
 }

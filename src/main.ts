@@ -17,8 +17,16 @@ async function bootstrap() {
 
   app.use(cookieParser());
   app.enableCors({
-    origin: true,
+    origin: [
+      process.env.CLIENT_URL,
+      'https://qwins-server-nestjs-latest.onrender.com',
+      'https://qwins.vercel.app',
+      'http://localhost:3000',
+    ],
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    exposedHeaders: ['set-cookie'],
   });
 
   const config = new DocumentBuilder()
@@ -28,6 +36,11 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
+
+  app.use((req, res, next) => {
+    console.log(`Request: ${req.method} ${req.url}`);
+    next();
+  });
 
   await app.listen(process.env.APP_PORT ?? 5000);
 }

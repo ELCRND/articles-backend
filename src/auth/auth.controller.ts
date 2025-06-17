@@ -1,12 +1,15 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
 
 import { AuthService } from './auth.service';
 
@@ -15,7 +18,7 @@ import { Public } from '../common/decorators/public.decorator';
 
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { TokensDto } from './dto/tokens.dto';
+import { User } from 'src/mongoose/schemas/user.schema';
 
 @Controller('auth')
 export class AuthController {
@@ -24,31 +27,43 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() dto: RegisterDto): Promise<TokensDto> {
-    return this.authService.register(dto);
+  register(@Res() res: Response, @Body() dto: RegisterDto): Promise<User> {
+    return this.authService.register(dto, res);
   }
 
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto): Promise<TokensDto> {
-    return this.authService.login(dto);
+  login(
+    @Res({ passthrough: true }) res: Response,
+    @Body() dto: LoginDto,
+  ): Promise<User> {
+    return this.authService.login(dto, res);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@GetCurrentUser('sub') userId: string) {
-    return this.authService.logout(userId);
+  logout(
+    @Res({ passthrough: true }) res: Response,
+    @GetCurrentUser('id') userId: string,
+  ) {
+    console.log(res.getHeaders().cookie);
+    console.log(userId);
+    return this.authService.logout(userId, res);
   }
 
   @Public()
-  @UseGuards(AuthGuard('jwt-refresh'))
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refreshTokens(
-    @GetCurrentUser('sub') userId: string,
-    @GetCurrentUser('refreshToken') refreshToken: string,
-  ): Promise<TokensDto> {
-    return this.authService.refreshTokens(userId, refreshToken);
+  async refreshTokens(
+    @Body() body: { refreshToken: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.authService.refreshTokens(body.refreshToken, res);
+  }
+
+  @Get('verify')
+  async verifyToken() {
+    return { valid: true };
   }
 }

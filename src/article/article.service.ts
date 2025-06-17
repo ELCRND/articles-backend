@@ -1,48 +1,81 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { ObjectId } from 'mongodb';
+
+import { UserService } from '../user/user.service';
 
 import { CreateArticleDto } from './dto/create-article.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { Article, ArticleDocument } from 'src/mongoose/schemas/article.schema';
 
 @Injectable()
 export class ArticleService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    @InjectModel(Article.name)
+    private readonly articleModel: Model<ArticleDocument>,
+    private readonly userService: UserService,
+  ) {}
 
-  async create(createArticleDto: CreateArticleDto) {
-    return this.prismaService.article.create({
-      data: {
-        ...createArticleDto,
-      },
+  public async create(createArticleDto: CreateArticleDto): Promise<Article> {
+    const existUser = await this.userService.getUserById(
+      createArticleDto.authorId,
+    );
+
+    if (!existUser) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
+
+    const createdArticle = new this.articleModel({
+      ...createArticleDto,
+      author: existUser._id, // Используем ObjectId
     });
+
+    return createdArticle.save();
   }
 
-  public async findAll() {
-    return this.prismaService.article.findMany({
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
-          },
-        },
-      },
-    });
+  public async findAll(skip?: number, limit?: number): Promise<Article[]> {
+    return this.articleModel
+      .find()
+      .populate('author', 'id username avatar')
+      .sort({ _id: -1 })
+      .skip(skip || 0)
+      .limit(limit || 0)
+      .exec();
   }
 
-  public async findOne(id: string) {
-    return this.prismaService.article.findUnique({
-      where: { id },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
-          },
-        },
-      },
-    });
+  public async findOne(id: string): Promise<Article | null> {
+    return this.articleModel
+      .findById(new ObjectId(id))
+      .populate('author', 'id username avatar')
+      .exec();
   }
 
-  // Другие методы (findOne, update, remove и т.д.)
+  public async search(keyword: string): Promise<Article[]> {
+    return this.articleModel
+      .find({
+        $or: [
+          { title: { $regex: keyword, $options: 'i' } },
+          { content: { $regex: keyword, $options: 'i' } },
+        ],
+      })
+      .populate('author', 'id username avatar')
+      .exec();
+  }
+
+  public async update(
+    id: string,
+    updateData: Partial<Article>,
+  ): Promise<Article | null> {
+    return this.articleModel
+      .findByIdAndUpdate(id, updateData, { new: true })
+      .exec();
+  }
+
+  public async remove(id: string): Promise<Article | null> {
+    return this.articleModel.findByIdAndDelete(id).exec();
+  }
+
+  public async count(): Promise<number> {
+    return this.articleModel.countDocuments().exec();
+  }
 }

@@ -1,6 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
-import { Category, Subtheme, Tag, Theme } from 'prisma/__prisma-generated__';
+import {
+  Category,
+  Subtheme,
+  Tag,
+  Theme,
+} from 'src/mongoose/schemas/article.schema';
 
 export class ArticleResponseDto {
   @ApiProperty({
@@ -49,7 +54,7 @@ export class ArticleResponseDto {
   tags: Tag[];
 
   @ApiProperty({
-    example: '538a988d-2e2c-4de5-8e3e-aa3a5f80a386',
+    example: '202b24f2-503a-49f8-a27a-a5a1a8bf54be',
     description: 'ID автора статьи',
   })
   @Expose()
