@@ -7,6 +7,12 @@ import {
   Theme,
 } from 'src/mongoose/schemas/article.schema';
 
+export class TipTapContentResponseDto {
+  @ApiProperty({ type: Object })
+  @Expose()
+  content: Record<string, any>;
+}
+
 export class ArticleResponseDto {
   @ApiProperty({
     example: 'a1b2c3d4',
@@ -20,11 +26,11 @@ export class ArticleResponseDto {
   title: string;
 
   @ApiProperty({
-    example: 'Содержание статьи...',
-    description: 'Основной текст статьи',
+    type: TipTapContentResponseDto,
+    description: 'Контент статьи в формате TipTap JSON',
   })
   @Expose()
-  content: string;
+  content: TipTapContentResponseDto;
 
   @ApiPropertyOptional({
     example: 'image.jpg',

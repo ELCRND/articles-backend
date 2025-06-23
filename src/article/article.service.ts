@@ -16,6 +16,23 @@ export class ArticleService {
     private readonly userService: UserService,
   ) {}
 
+  // public async create(createArticleDto: CreateArticleDto): Promise<Article> {
+  //   const existUser = await this.userService.getUserById(
+  //     createArticleDto.authorId,
+  //   );
+
+  //   if (!existUser) {
+  //     throw new UnauthorizedException('Пользователь не найден');
+  //   }
+
+  //   const createdArticle = new this.articleModel({
+  //     ...createArticleDto,
+  //     author: existUser._id, // Используем ObjectId
+  //   });
+
+  //   return createdArticle.save();
+  // }
+
   public async create(createArticleDto: CreateArticleDto): Promise<Article> {
     const existUser = await this.userService.getUserById(
       createArticleDto.authorId,
@@ -25,12 +42,34 @@ export class ArticleService {
       throw new UnauthorizedException('Пользователь не найден');
     }
 
+    // Генерируем plain text для поиска
+    const plainText = this.generatePlainText(createArticleDto.content.content);
+
     const createdArticle = new this.articleModel({
       ...createArticleDto,
-      author: existUser._id, // Используем ObjectId
+      content: createArticleDto.content,
+      plainText,
+      author: existUser._id,
     });
 
     return createdArticle.save();
+  }
+
+  private generatePlainText(content: Record<string, any>): string {
+    if (!content?.content) return '';
+
+    let text = '';
+    for (const node of content.content) {
+      if (node.type === 'paragraph' && node.content) {
+        for (const textNode of node.content) {
+          if (textNode.text) {
+            text += textNode.text + ' ';
+          }
+        }
+        text += '\n';
+      }
+    }
+    return text.trim();
   }
 
   public async findAll(skip?: number, limit?: number): Promise<Article[]> {
@@ -52,12 +91,19 @@ export class ArticleService {
 
   public async search(keyword: string): Promise<Article[]> {
     return this.articleModel
-      .find({
-        $or: [
-          { title: { $regex: keyword, $options: 'i' } },
-          { content: { $regex: keyword, $options: 'i' } },
-        ],
-      })
+      .find(
+        {
+          $text: {
+            $search: keyword,
+            $caseSensitive: false, // регистронезависимый поиск
+            $diacriticSensitive: false, // игнорирование диакритических знаков
+          },
+        },
+        {
+          score: { $meta: 'textScore' }, // добавляем оценку релевантности
+        },
+      )
+      .sort({ score: { $meta: 'textScore' } }) // сортируем по релевантности
       .populate('author', 'id username avatar')
       .exec();
   }

@@ -44,8 +44,11 @@ export class Article {
   @Prop({ required: true })
   title: string;
 
-  @Prop({ required: true })
-  content: string;
+  @Prop({ type: Object, required: true }) // Храним JSON-структуру TipTap
+  content: Record<string, any>;
+
+  @Prop()
+  plainText: string;
 
   @Prop()
   image?: string;
@@ -88,3 +91,18 @@ export class Article {
 }
 
 export const ArticleSchema = SchemaFactory.createForClass(Article);
+
+ArticleSchema.index(
+  {
+    title: 'text',
+    plainText: 'text',
+    tags: 'text',
+  },
+  {
+    weights: {
+      title: 10,
+      plainText: 5,
+      tags: 3,
+    },
+  },
+);

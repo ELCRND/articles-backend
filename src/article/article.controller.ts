@@ -9,6 +9,7 @@ import { Article } from 'src/mongoose/schemas/article.schema';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { ArticleResponseDto } from './dto/article-response.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { plainToClass } from 'class-transformer';
 
 @Controller('article')
 export class ArticleController {
@@ -25,8 +26,11 @@ export class ArticleController {
   @Post('create')
   async createArticle(
     @Body() createArticleDto: CreateArticleDto,
-  ): Promise<Article> {
-    return this.articlesService.create(createArticleDto);
+  ): Promise<ArticleResponseDto> {
+    const article = await this.articlesService.create(createArticleDto);
+    return plainToClass(ArticleResponseDto, article, {
+      excludeExtraneousValues: true,
+    });
   }
 
   @Public()

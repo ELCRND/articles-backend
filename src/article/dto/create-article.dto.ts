@@ -4,8 +4,10 @@ import {
   IsBoolean,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 import {
   Category,
@@ -13,6 +15,14 @@ import {
   Tag,
   Theme,
 } from 'src/mongoose/schemas/article.schema';
+import { Type } from 'class-transformer';
+
+class TipTapContentDto {
+  @ApiProperty({ type: Object })
+  @IsObject()
+  @IsNotEmpty()
+  content: Record<string, any>;
+}
 
 export class CreateArticleDto {
   @ApiProperty({ example: 'Название статьи', description: 'Заголовок статьи' })
@@ -21,12 +31,12 @@ export class CreateArticleDto {
   title: string;
 
   @ApiProperty({
-    example: 'Содержание статьи...',
-    description: 'Основной текст статьи',
+    type: TipTapContentDto,
+    description: 'Контент статьи в формате TipTap JSON',
   })
-  @IsString()
-  @IsNotEmpty()
-  content: string;
+  @ValidateNested()
+  @Type(() => TipTapContentDto)
+  content: TipTapContentDto;
 
   @ApiPropertyOptional({
     example: 'image.jpg',
