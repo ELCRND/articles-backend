@@ -9,7 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ObjectId } from 'mongodb';
 import { Model } from 'mongoose';
 import { hash, verify } from 'argon2';
-import { Response } from 'express';
+import { CookieOptions, Response } from 'express';
 
 import { UserService } from '../user/user.service';
 import { Role, User, UserDocument } from 'src/mongoose/schemas/user.schema';
@@ -21,13 +21,33 @@ import { TokensDto } from './dto/tokens.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly accessTokenOptions: CookieOptions;
+  private readonly refreshTokenOptions: CookieOptions;
+
   constructor(
     private readonly configService: ConfigService,
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Session.name) private sessionModel: Model<SessionDocument>,
-  ) {}
+  ) {
+    const isProduction =
+      this.configService.get<string>('NODE_ENV') === 'production';
+
+    this.accessTokenOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    };
+
+    this.refreshTokenOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    };
+  }
 
   async register(dto: RegisterDto, res: Response): Promise<User> {
     const existingUser = await this.userService.getUserByEmail(dto.email);
@@ -69,7 +89,7 @@ export class AuthService {
   }
 
   async logout(userId: string, res: Response): Promise<void> {
-    await this.sessionModel.deleteMany({ userId }).exec();
+    await this.sessionModel.deleteMany({ user: new ObjectId(userId) }).exec();
     this.clearTokens(res);
   }
 
@@ -77,49 +97,42 @@ export class AuthService {
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token не предоставлен');
     }
-    console.log('refreshToken has', 0);
 
-    let payload: JwtPayload;
+    const payload = await this.verifyRefreshToken(refreshToken);
+    const user = await this.getUserIfExists(payload.sub);
+    await this.validateSession(payload.sub);
+
+    await this.issueNewTokens(user, res);
+    return user;
+  }
+
+  private async verifyRefreshToken(token: string): Promise<JwtPayload> {
     try {
-      payload = this.jwtService.verify(refreshToken) as JwtPayload;
+      return this.jwtService.verify(token, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      }) as JwtPayload;
     } catch (e) {
-      this.clearTokens(res);
-
       throw new UnauthorizedException('Недействительный refresh token');
     }
+  }
 
-    console.log('refreshToken payload has', 1);
-
-    const user = await this.userModel
-      .findById(new ObjectId(payload.sub))
-      .exec();
+  private async getUserIfExists(userId: string): Promise<UserDocument> {
+    const user = await this.userModel.findById(new ObjectId(userId)).exec();
     if (!user) {
       throw new UnauthorizedException('Пользователь не существует');
     }
+    return user;
+  }
 
-    console.log('refreshToken user has', 2);
-
+  private async validateSession(userId: string): Promise<void> {
     const session = await this.sessionModel
-      .findOne({
-        userId: payload.sub,
-      })
+      .findOne({ user: new ObjectId(userId) })
       .exec();
-
     if (!session) {
-      this.clearTokens(res);
       throw new UnauthorizedException(
         'Сессия не найдена. Пожалуйста, войдите снова.',
       );
     }
-
-    console.log('refreshToken session has', 3);
-
-    await this.issueNewTokens(user, res);
-
-    console.log('refreshToken refresh has', 4);
-
-    console.log('refreshToken', 10);
-    return user;
   }
 
   private async issueNewTokens(user: User, res: Response): Promise<void> {
@@ -151,7 +164,6 @@ export class AuthService {
         ),
       }),
     ]);
-
     return { accessToken, refreshToken };
   }
 
@@ -160,7 +172,7 @@ export class AuthService {
     refreshToken: string,
   ): Promise<void> {
     await this.sessionModel.findOneAndUpdate(
-      { userId },
+      { user: new ObjectId(userId) },
       {
         refreshToken,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -170,42 +182,12 @@ export class AuthService {
   }
 
   private setTokensCookies(res: Response, tokens: TokensDto): void {
-    const accessTokenMaxAge = 15 * 60 * 1000;
-    const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000;
-
-    res.cookie('access_token', tokens.accessToken, {
-      httpOnly: true,
-      secure: this.configService.get<string>('NODE_ENV') === 'production',
-      sameSite: 'lax',
-      maxAge: accessTokenMaxAge,
-      expires: new Date(Date.now() + accessTokenMaxAge),
-    });
-
-    res.cookie('refresh_token', tokens.refreshToken, {
-      httpOnly: true,
-      secure: this.configService.get<string>('NODE_ENV') === 'production',
-      sameSite: 'lax',
-      maxAge: refreshTokenMaxAge,
-      expires: new Date(Date.now() + refreshTokenMaxAge),
-    });
+    res.cookie('access_token', tokens.accessToken, this.accessTokenOptions);
+    res.cookie('refresh_token', tokens.refreshToken, this.refreshTokenOptions);
   }
 
   private clearTokens(res: Response): void {
     res.clearCookie('access_token');
     res.clearCookie('refresh_token');
-
-    // res.cookie('access_token', 0, {
-    //   httpOnly: true,
-    //   secure: this.configService.get<string>('NODE_ENV') === 'production',
-    //   sameSite: 'lax',
-    //   maxAge: 0,
-    // });
-
-    // res.cookie('refresh_token', 0, {
-    //   httpOnly: true,
-    //   secure: this.configService.get<string>('NODE_ENV') === 'production',
-    //   sameSite: 'lax',
-    //   maxAge: 0,
-    // });
   }
 }

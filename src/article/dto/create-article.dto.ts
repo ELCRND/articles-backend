@@ -19,7 +19,7 @@ import { Type } from 'class-transformer';
 
 class TipTapContentDto {
   @ApiProperty({ type: Object })
-  @IsObject()
+  @IsArray()
   @IsNotEmpty()
   content: Record<string, any>;
 }
@@ -31,18 +31,23 @@ export class CreateArticleDto {
   title: string;
 
   @ApiProperty({
-    type: TipTapContentDto,
+    type: Object,
     description: 'Контент статьи в формате TipTap JSON',
+    example: {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Текст' }] },
+      ],
+    },
   })
-  @ValidateNested()
-  @Type(() => TipTapContentDto)
-  content: TipTapContentDto;
+  @IsObject()
+  @IsNotEmpty()
+  content: Record<string, any>;
 
   @ApiPropertyOptional({
     example: 'image.jpg',
     description: 'URL изображения статьи',
   })
-  @IsString()
   @IsOptional()
   image?: string;
 
@@ -85,10 +90,13 @@ export class CreateArticleDto {
   published?: boolean;
 
   @ApiProperty({
-    example: '202b24f2-503a-49f8-a27a-a5a1a8bf54be',
-    description: 'Автор',
+    example: 'test2@mail.ru',
+    description: 'email',
   })
   @IsString()
   @IsNotEmpty()
-  authorId: string;
+  email: string;
+
+  @IsOptional()
+  duration?: string;
 }

@@ -23,16 +23,59 @@ async function createArticles() {
 
   const articlesData: any = [];
 
+  // Функция для генерации случайного TipTap JSON и plainText
+  const generateContent = () => {
+    const paragraphCount = faker.number.int({ min: 3, max: 10 });
+    const tipTapContent = {
+      type: 'doc',
+      content: [] as any[],
+    };
+    let plainText = '';
+
+    for (let i = 0; i < paragraphCount; i++) {
+      const sentence = faker.lorem.sentence();
+      const words = sentence.split(' ');
+
+      // Добавляем в TipTap
+      tipTapContent.content.push({
+        type: 'paragraph',
+        content: words.map((word, index) => ({
+          type: 'text',
+          text: word + (index === words.length - 1 ? '' : ' '),
+          marks: faker.datatype.boolean(0.3)
+            ? [
+                {
+                  type: faker.helpers.arrayElement([
+                    'bold',
+                    'italic',
+                    'underline',
+                  ]),
+                },
+              ]
+            : undefined,
+        })),
+      });
+
+      // Добавляем в plainText
+      plainText += sentence + '\n\n';
+    }
+
+    return { tipTapContent, plainText };
+  };
+
   for (let i = 0; i < 15; i++) {
     const randomTags = faker.helpers.arrayElements(
       tags,
       faker.number.int({ min: 1, max: 4 }),
     );
 
+    const { tipTapContent, plainText } = generateContent();
+
     articlesData.push({
       _id: new ObjectId(),
       title: faker.lorem.sentence(),
-      content: faker.lorem.paragraphs(faker.number.int({ min: 3, max: 10 })),
+      content: tipTapContent,
+      plainText: plainText.trim(), // сохраняем plainText для поиска
       image: faker.image.urlLoremFlickr({ category: 'technology' }),
       category: faker.helpers.arrayElement(categories),
       theme: faker.helpers.arrayElement(themes),
@@ -53,6 +96,30 @@ async function createArticles() {
     .collection('articles')
     .insertMany(articlesData);
   return result.insertedCount;
+}
+
+// Вспомогательная функция для извлечения plainText из TipTap JSON
+function extractPlainText(tiptapContent: Record<string, any>): string {
+  let plainText = '';
+
+  if (tiptapContent.content) {
+    for (const block of tiptapContent.content) {
+      if (block.content) {
+        for (const item of block.content) {
+          if (item.content) {
+            for (const textItem of item.content) {
+              if (textItem.text) {
+                plainText += textItem.text;
+              }
+            }
+          }
+        }
+      }
+      plainText += '\n\n';
+    }
+  }
+
+  return plainText.trim();
 }
 
 async function generate() {

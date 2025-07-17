@@ -24,13 +24,26 @@ import { User } from 'src/mongoose/schemas/user.schema';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  /**/
+  /**/
+  /** @Регистрация */
+  /**/
+  /**/
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(@Res() res: Response, @Body() dto: RegisterDto): Promise<User> {
+  register(
+    @Res({ passthrough: true }) res: Response,
+    @Body() dto: RegisterDto,
+  ): Promise<User> {
     return this.authService.register(dto, res);
   }
 
+  /**/
+  /**/
+  /** @Вход */
+  /**/
+  /**/
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -47,8 +60,6 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @GetCurrentUser('id') userId: string,
   ) {
-    console.log(res.getHeaders().cookie);
-    console.log(userId);
     return this.authService.logout(userId, res);
   }
 
@@ -63,7 +74,7 @@ export class AuthController {
   }
 
   @Get('verify')
-  async verifyToken() {
-    return { valid: true };
+  async verifyToken(@GetCurrentUser() user) {
+    return { valid: true, user };
   }
 }
